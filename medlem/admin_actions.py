@@ -109,6 +109,52 @@ def giro_list(modeladmin, request, queryset):
 giro_list.short_description = "Enkel revisorliste"
 
 @transaction.commit_on_success
+def communicate_giro(modeladmin, request, queryset):
+    from communication.models import Communication, CommunicationIntentForm
+    if request.POST.get('post'):
+        form = CommunicationIntentForm(request.POST)
+        if form.is_valid():
+            if not request.POST.get("ink-utmeld"):
+                queryset = queryset.filter(medlem__utmeldt_dato__isnull=True)
+            if not request.POST.get("ink-betalt"):
+                queryset = queryset.exclude(innbetalt__isnull=False)
+
+            form.save()
+            for giro in queryset:
+                com = Communication.create_from_intent(
+                    form.instance, medlem=giro.medlem, giro=giro)
+                com.save()
+            return None
+    else:
+        # Clean form, no post
+        form = CommunicationIntentForm()
+
+    opts = modeladmin.model._meta
+    app_label = opts.app_label
+    n_utmelde = queryset.filter(medlem__utmeldt_dato__isnull=False).count()
+    n_betalte = queryset.filter(innbetalt__isnull=False).count()
+    g_frist = datetime.date.today() + datetime.timedelta(30)
+
+
+    title = _("Communicate ({c} giros)".format(c=queryset.count()))
+
+    context = {
+        "title": title,
+        "queryset": queryset,
+        "opts": opts,
+        "app_label": app_label,
+        "action_checkbox_name": helpers.ACTION_CHECKBOX_NAME,
+        "n_utmelde": n_utmelde,
+        "n_betalte": n_betalte,
+        "g_frist": g_frist,
+        "form": form,
+    }
+
+    return TemplateResponse(request, "admin/communicate_giro.html", context,
+            current_app=modeladmin.admin_site.name)
+communicate_giro.short_description = _("Communicate about these giros")
+
+@transaction.commit_on_success
 def pdf_giro(modeladmin, request, queryset):
     # User has already written some text, make PDF
     if request.POST.get('post'):
