@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 # vim: ts=4 sts=4 expandtab ai
+from django import forms
+from django.core.mail import EmailMultiAlternatives
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
-from django import forms
 
 from medlem.models import Medlem
 from medlem.models import Giro
@@ -32,6 +33,18 @@ class CommunicationIntent(models.Model):
 
     created = models.DateTimeField(auto_now_add=True)
 
+    def process(self):
+        emails = self.communication_set.filter(
+            type=self.TYPE_EMAIL,
+        )
+        for e in emails:
+            e.email.send()
+
+        pdf_pages = self.communication_set.filter(
+            type=self.TYPE_PDF,
+        )
+        pass
+
     def __unicode__(self):
         return u"Intent {s.prefer} '{s.template}'".format(s=self)
 
@@ -48,6 +61,7 @@ class Communication(models.Model):
 
     # This depends on the type
     email = models.OneToOneField('Email', blank=True, null=True)
+    pdf = models.OneToOneField('Pdf', blank=True, null=True)
 
     created = models.DateTimeField(auto_now_add=True)
     processed = models.DateTimeField(blank=True, null=True)
@@ -72,6 +86,21 @@ class Communication(models.Model):
         return u"{t} to {s.medlem}".format(
                 s=self, t=self.get_type_display())
 
+class Pdf(models.Model):
+    LAYOUT_GIRO = 'giro'
+    LAYOUT_FAKTURA = 'faktura'
+    LAYOUTS = (
+        (LAYOUT_GIRO, _('Giro')),
+        (LAYOUT_FAKTURA, _('Faktura')),
+    )
+    header = models.CharField(max_length=255)
+    text_body = models.TextField()
+
+    layout = models.CharField(
+        max_length=20, choices=LAYOUTS, default=LAYOUT_GIRO)
+
+
+
 class Email(models.Model):
     subject = models.CharField(max_length=255)
     to = models.EmailField()
@@ -94,6 +123,14 @@ class Email(models.Model):
         obj = Email(
             subject=subject, to=medlem.epost, text_body=text_body)
         return obj
+
+    def send(self):
+        msg = EmailMultiAlternatives(self.subject,
+                body=self.text_body,
+                to=self.to)
+        if self.html_body:
+            msg.attach_alternative(self.html_body, "text/html")
+        msg.send()
 
     def __unicode__(self):
         return u"{s.subject} ({s.to})".format(s=self)
