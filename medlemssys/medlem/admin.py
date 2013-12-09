@@ -1,16 +1,22 @@
 # -*- coding: utf-8 -*-
 # vim: ts=4 sts=4 expandtab ai
+from django import forms
 from django.contrib import admin
 from django.core.urlresolvers import reverse
+from django.db import models
 from django.utils.translation import ugettext_lazy as _
 from reversion_compare.admin import CompareVersionAdmin
 
+from membership.models import Membership
+from membership.admin_actions import create_membership
 from settings import STATIC_URL
-from filters import AdditiveSubtractiveFilter, FodtFilter, MedlemFodtFilter,SporjingFilter, GiroSporjingFilter #, Filter, TimeSince
-from filters import StadFilter
 
-import admin_actions
-from models import *
+from . import admin_actions
+from .filters import AdditiveSubtractiveFilter, FodtFilter, MedlemFodtFilter,SporjingFilter, GiroSporjingFilter #, Filter, TimeSince
+from .filters import StadFilter
+from .models import *
+
+
 
 class GiroInline(admin.TabularInline):
     model = Giro
@@ -18,6 +24,13 @@ class GiroInline(admin.TabularInline):
     classes = ['left']
     fields = ['belop', 'innbetalt_belop', 'kid', 'gjeldande_aar', 'innbetalt', 'konto', 'desc', 'status']
     readonly_fields = ('status',)
+class MembershipInline(admin.TabularInline):
+    model = Membership
+    extra = 0
+    classes = ['left']
+    formfield_overrides = {
+        models.DateTimeField: {'widget': forms.DateInput}
+    }
 class RolleInline(admin.TabularInline):
     model = Rolle
     extra = 1
@@ -53,7 +66,7 @@ class MedlemAdmin(CompareVersionAdmin):
     raw_id_fields = ['verva_av', 'betalt_av']
     readonly_fields = ('_siste_medlemspengar', 'oppretta', 'oppdatert')
     save_on_top = True
-    inlines = [RolleInline, GiroInline, VervaMedlemInline]
+    inlines = [MembershipInline, RolleInline, GiroInline, VervaMedlemInline]
     search_fields = ('fornamn', 'mellomnamn', 'etternamn', '=id', '^mobnr',)
     filter_horizontal = ('val',)
     fieldsets = (
@@ -83,6 +96,7 @@ class MedlemAdmin(CompareVersionAdmin):
                 admin_actions.csv_list,
                 admin_actions.lag_giroar,
                 admin_actions.suggest_lokallag,
+                create_membership,
               ]
 
     class Media:
