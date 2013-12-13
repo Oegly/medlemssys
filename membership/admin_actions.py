@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # vim: ts=4 sw=4 sts=4 expandtab ai
 
+import reversion
 from django.contrib.admin import helpers
 from django.db.models import Q
 from django.template.response import TemplateResponse
@@ -17,13 +18,19 @@ def create_membership(modeladmin, request, queryset):
             if form.cleaned_data['only_membershipless']:
                 queryset = queryset.invalid_membership()
             memberships = []
-            for m in queryset:
-                memberships.append(Membership(
-                    member=m, type=form.cleaned_data['type'],
-                    start=form.cleaned_data['start'],
-                    end=form.cleaned_data['end']))
-            Membership.objects.bulk_create(memberships)
-            return
+            with reversion.create_revision():
+                reversion.set_comment(_("Create memberships"))
+                reversion.set_user(request.user)
+                for m in queryset:
+                    ms = Membership(
+                        member=m, type=form.cleaned_data['type'],
+                        start=form.cleaned_data['start'],
+                        end=form.cleaned_data['end'])
+                    ms.save()
+                    memberships.append(ms)
+                # Doesn't work with reversion
+                #Membership.objects.bulk_create(memberships)
+                return
     else:
         form = MassMembershipForm()
 
