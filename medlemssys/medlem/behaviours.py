@@ -84,19 +84,23 @@ class MedlemQuerySetBase(QuerySet):
         """Medlem med gyldig medlemskap"""
         datetime = datetime or timezone.now()
         return self.alle().filter(
-            Q(membership__isnull=False),
-            Q(membership__start__lt=datetime),
-            Q(membership__end__isnull=True) | Q(membership__end__gt=datetime)
+            Q(memberships__isnull=False),
+            Q(memberships__start__lt=datetime),
+            Q(memberships__end__isnull=True) | Q(memberships__end__gt=datetime)
         )
 
     def invalid_membership(self, datetime=None):
         """Medlem utan gyldig medlemskap"""
         datetime = datetime or timezone.now()
-        return self.alle().filter(
-            Q(membership__isnull=True) |
-            Q(membership__end__lte=datetime) |
-            Q(membership__start__gt=datetime)
+        qs = self.alle().filter(
+            Q(memberships__isnull=True) |
+            ~(Q(memberships__start__lt=datetime) &
+                (Q(memberships__end__isnull=True) |
+                 Q(memberships__end__gt=datetime))
+            )
         )
+        print qs.query
+        return qs
 
     # Postnummer
     def fylke(self, fylke):

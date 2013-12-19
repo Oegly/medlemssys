@@ -193,7 +193,7 @@ class ValAdmin(CompareVersionAdmin):
 
 class GiroAdmin(CompareVersionAdmin):
     model = Giro
-    raw_id_fields = ['medlem']
+    raw_id_fields = ['medlem', 'membership']
     list_display = ('pk', 'medlem_admin_change', 'kid', 'belop',
                     'innbetalt_belop', 'gjeldande_aar', 'innbetalt', 'konto',
                     'status')
@@ -219,6 +219,7 @@ class GiroAdmin(CompareVersionAdmin):
         (None, {
             'fields': (
                 'medlem',
+                'membership',
                 ('belop', 'innbetalt_belop'),
                 ('konto', 'hensikt'),
                 'innbetalt',
